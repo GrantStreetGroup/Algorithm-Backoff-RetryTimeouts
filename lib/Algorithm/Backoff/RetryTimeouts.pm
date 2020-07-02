@@ -18,12 +18,13 @@ use namespace::clean;
     use Algorithm::Backoff::RetryTimeouts;
 
     my $retry_algo = Algorithm::Backoff::RetryTimeouts->new(
-        # common adjustments
-        max_attempts          => 8,    # default
-        max_actual_duration   => 50,   # default
-        jitter_factor         => 0.1,  # default
-        adjust_timeout_factor => 0.5,  # default
-        min_adjust_timeout    => 5,    # default
+        # common adjustments (defaults shown)
+        max_attempts          => 8,
+        max_actual_duration   => 50,
+        jitter_factor         => 0.1,
+        timeout_jitter_factor => 0.1,
+        adjust_timeout_factor => 0.5,
+        min_adjust_timeout    => 5,
 
         # other defaults
         initial_delay         => sqrt(2),
@@ -139,6 +140,11 @@ our %SPEC = %{ dclone \%Algorithm::Backoff::Exponential::SPEC };
         schema  => 'ufloat*',
         default => 5,
     };
+    $args->{timeout_jitter_factor} = {
+        summary => 'How much randomness to add to the adjustable timeout',
+        schema  => ['float*', between=>[0, 0.5]],
+        default => 0.1,
+    };
 }
 
 =head1 CONSTRUCTOR
@@ -190,6 +196,15 @@ This value bypasses any C<max_actual_duration> checks, so the total time spent o
 sleeping and attempts may end up exceeding that value by a small amount (up to
 C<max_actual_duration + min_adjust_timeout>).  In this case, future failures will return
 a delay of C<-1> as expected.
+
+=item * timeout_jitter_factor => I<float> (default: 0.1)
+
+How much randomness to add to the adjustable timeout.
+
+Delay jitter may not be enough to desynchronize two processes that are consistently
+timing out on the same problem.  In those cases, the delay will usually be zero and won't
+have any sort of jitter to solve the problem itself.  A jitter factor against the timeout
+will ensure simultaneous attempts have slightly different timeout windows.
 
 =head1 METHODS
 
@@ -264,6 +279,7 @@ sub timeout {
     return -1 unless $max_time;
 
     my $timeout = $max_time * $timeout_factor;
+    $timeout = $self->_add_timeout_jitter($timeout) if $self->{timeout_jitter_factor};
     $timeout = $min_time if $min_time > $timeout;
     return $timeout;
 }
@@ -291,12 +307,23 @@ sub _set_last_timeout {
 
     # Re-adjust the timeout based on the final delay and min timeout setting
     $timeout = ($actual_time_left - $delay) * $timeout_factor;
+    $timeout = $self->_add_timeout_jitter($timeout) if $self->{timeout_jitter_factor};
     $timeout = $min_time if $min_time > $timeout;
 
     $self->{_prev_delay}   = $delay;
     $self->{_last_timeout} = $timeout;
 
     return ($delay, $timeout);
+}
+
+sub _add_timeout_jitter {
+    my ($self, $timeout) = @_;
+    my $jitter = $self->{timeout_jitter_factor};
+    return $timeout unless $timeout && $jitter;
+
+    my $min = $timeout * (1 - $jitter);
+    my $max = $timeout * (1 + $jitter);
+    return $min + ($max - $min) * rand();
 }
 
 sub _consider_actual_delay {

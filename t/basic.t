@@ -2,7 +2,9 @@
 
 use strict;
 use warnings;
+
 use Test::More 0.98;
+use List::Util qw< min max sum >;
 
 use Algorithm::Backoff::RetryTimeouts;
 
@@ -13,8 +15,9 @@ my $sqrt2 = sqrt(2);
 subtest "Base defaults" => sub {
     $rt = Algorithm::Backoff::RetryTimeouts->new(
         # for the unit tests
-        _start_timestamp => 0,
-        jitter_factor    => 0,
+        _start_timestamp      => 0,
+        jitter_factor         => 0,
+        timeout_jitter_factor => 0,
     );
 
     $time = 0;
@@ -68,8 +71,9 @@ subtest "attr: adjust_timeout_factor" => sub {
         adjust_timeout_factor => 0.25,
 
         # for the unit tests
-        _start_timestamp => 0,
-        jitter_factor    => 0,
+        _start_timestamp      => 0,
+        jitter_factor         => 0,
+        timeout_jitter_factor => 0,
     );
 
     $time = 0;
@@ -128,8 +132,9 @@ subtest "attr: min_adjust_timeout" => sub {
         min_adjust_timeout    => 0,
 
         # for the unit tests
-        _start_timestamp => 0,
-        jitter_factor    => 0,
+        _start_timestamp      => 0,
+        jitter_factor         => 0,
+        timeout_jitter_factor => 0,
     );
 
     $time = 0;
@@ -171,6 +176,52 @@ subtest "attr: min_adjust_timeout" => sub {
     );
 };
 
+subtest "Jitter factors" => sub {
+    $rt = Algorithm::Backoff::RetryTimeouts->new(
+        max_attempts          => 0,
+        consider_actual_delay => 0,
+        _start_timestamp      => 0,
+
+        jitter_factor         => 0.1,
+        timeout_jitter_factor => 0.1,
+    );
+
+    # Calculate an average of 1000 hits
+    my @timeouts;
+    push @timeouts, $rt->timeout for 1 .. 1000;
+
+    my @delays;
+    for (1 .. 1000) {
+        $rt->{_attempts} = 0;
+        $rt->failure(1);
+        push @delays, $rt->delay;
+    }
+
+    my $min_timeout  = min    @timeouts;
+    my $max_timeout  = max    @timeouts;
+    my $avg_timeout  = sum    @timeouts;
+    $avg_timeout    /= scalar @timeouts;
+
+    my $min_delay    = min    @delays;
+    my $max_delay    = max    @delays;
+    my $avg_delay    = sum    @delays;
+    $avg_delay      /= scalar @delays;
+
+    cmp_ok($avg_timeout, '>=', 24.5, 'Avg timeout within norms (>=)');
+    cmp_ok($avg_timeout, '<=', 25.5, 'Avg timeout within norms (<=)');
+    cmp_ok($min_timeout, '<=', 23  , 'Min timeout within norms (<=)');
+    cmp_ok($max_timeout, '>=', 27  , 'Max timeout within norms (>=)');
+
+    cmp_ok($avg_delay,   '>=', 1.3, 'Avg delay within norms (>=)');
+    cmp_ok($avg_delay,   '<=', 1.5, 'Avg delay within norms (<=)');
+    cmp_ok($min_delay,   '<=', 1.3, 'Min delay within norms (<=)');
+    cmp_ok($max_delay,   '>=', 1.5, 'Max delay within norms (>=)');
+
+    note "AVG: Timeout: $avg_timeout; Delay: $avg_delay";
+    note "MIN: Timeout: $min_timeout; Delay: $min_delay";
+    note "MAX: Timeout: $max_timeout; Delay: $max_delay";
+};
+
 done_testing;
 
 sub test_attempt {
@@ -195,7 +246,7 @@ sub test_attempt {
     );
 
     # Run the unit tests
-    diag "Time: ".round($time).", Attempt \#$attempts: $method";
+    note "Time: ".round($time).", Attempt \#$attempts: $method";
     is(
         round($delay),
         $expected_delay,
