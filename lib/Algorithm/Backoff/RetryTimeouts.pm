@@ -338,6 +338,11 @@ sub _consider_actual_delay {
 sub _success_or_failure {
     my ($self, $is_success, $timestamp) = @_;
 
+    # If this is the first time, the _last_timestamp should be set to the start, not
+    # $timestamp.  This will prevent issues with the first attempt causing unnecessary
+    # delays (ie: waiting 1.4s after the first attempt took longer than that).
+    $self->{_last_timestamp} //= $self->{_start_timestamp};
+
     my $delay = $self->SUPER::_success_or_failure($is_success, $timestamp);
     return $self->_set_last_timeout($delay, $timestamp);
 }

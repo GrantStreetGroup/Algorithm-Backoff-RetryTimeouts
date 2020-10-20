@@ -26,7 +26,7 @@ subtest "Base defaults" => sub {
     # 1: one second attempt
     test_attempt(
         attempt_time   => 1,
-        expected_delay => $sqrt2,  # sqrt(2)^1
+        expected_delay => $sqrt2 - 1,  # sqrt(2)^1 - 1
     );
 
     # 2: instant failure
@@ -55,7 +55,7 @@ subtest "Base defaults" => sub {
 
     # 6: full timeout (with remaining time max delay check)
     test_attempt(
-        expected_delay   => 2.198,  # 50% of the remaining time
+        expected_delay   => 2.323,  # 50% of the remaining time
         expected_timeout => 5,
     );
 
@@ -82,7 +82,7 @@ subtest "attr: adjust_timeout_factor" => sub {
     # 1: one second attempt
     test_attempt(
         attempt_time   => 1,
-        expected_delay => $sqrt2,  # sqrt(2)^1
+        expected_delay => $sqrt2 - 1,  # sqrt(2)^1 - 1
     );
 
     # 2: instant failure
@@ -108,8 +108,9 @@ subtest "attr: adjust_timeout_factor" => sub {
     );
 
     # 6: full timeout (with min_adjust_timeout trigger)
+    note "Prev Timeout: ".round($rt->timeout);
     test_attempt(
-        expected_delay   => 2.339,  # sqrt(2)^6 = 8 - 5.661 (prev timeout)
+        expected_delay   => 2.199,  # sqrt(2)^6 = 8 - 5.801 (prev timeout)
         expected_timeout => 5,
     );
 
@@ -142,7 +143,7 @@ subtest "attr: min_adjust_timeout" => sub {
 
     # 1: full timeout
     test_attempt(
-        expected_delay => $sqrt2,  # sqrt(2)^1
+        expected_delay => 0,
     );
 
     # 2: full timeout
@@ -155,13 +156,13 @@ subtest "attr: min_adjust_timeout" => sub {
 
     # 3-7: full timeouts
     test_attempt(
-        expected_delay => 0.173,
+        expected_delay => 0.195,
     );
     test_attempt(
-        expected_delay => 0.032,
+        expected_delay => 0.037,
     );
     test_attempt(
-        expected_delay => 0.006,
+        expected_delay => 0.007,
     );
     test_attempt(
         expected_delay => 0.001,
@@ -172,7 +173,8 @@ subtest "attr: min_adjust_timeout" => sub {
 
     # 8: final attempt
     test_attempt(
-        expected_delay => -1,
+        expected_delay   => -1,
+        expected_timeout => 0.001,
     );
 };
 
