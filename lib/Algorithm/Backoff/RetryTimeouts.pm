@@ -7,7 +7,9 @@ use warnings;
 use Algorithm::Backoff::Exponential;
 use base qw< Algorithm::Backoff::Exponential >;
 
-use Storable qw< dclone >;
+use Storable    qw< dclone >;
+use Time::HiRes qw< time   >;
+
 use namespace::clean;
 
 # ABSTRACT: A backoff-style retry algorithm with adjustable timeout support
@@ -229,11 +231,18 @@ attempt.
 =cut
 
 sub failure {
-    my $self = shift;
-    my ($delay, $timeout) = $self->SUPER::failure(@_);
+    my ($self, $timestamp) = @_;
+    $timestamp //= time;
 
-    # This would be undef on max duration/attempts failure
+    my ($delay, $timeout) = $self->SUPER::failure($timestamp);
+
+    # Fix certain values if the check failed max duration/attempts checks
     $timeout //= $self->timeout;
+    if ($delay == -1) {
+        $self->{_attempts}++;
+        $self->{_last_timestamp} = $timestamp;
+    }
+
     return ($delay, $timeout);
 }
 
