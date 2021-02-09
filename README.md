@@ -4,7 +4,7 @@ Algorithm::Backoff::RetryTimeouts - A backoff-style retry algorithm with adjusta
 
 # VERSION
 
-version v0.0.1
+version v1.0.0
 
 # SYNOPSIS
 
@@ -187,11 +187,3 @@ This software is Copyright (c) 2020 - 2021 by Grant Street Group.
 This is free software, licensed under:
 
     The Artistic License 2.0 (GPL Compatible)
-
-# POD ERRORS
-
-Hey! **The above document had some coding errors, which are explained below:**
-
-- Around line 539:
-
-    You forgot a '=back' before '=head1'

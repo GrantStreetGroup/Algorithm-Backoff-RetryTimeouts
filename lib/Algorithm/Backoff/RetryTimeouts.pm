@@ -208,6 +208,8 @@ timing out on the same problem.  In those cases, the delay will usually be zero 
 have any sort of jitter to solve the problem itself.  A jitter factor against the timeout
 will ensure simultaneous attempts have slightly different timeout windows.
 
+=back
+
 =head1 METHODS
 
 =head2 success
